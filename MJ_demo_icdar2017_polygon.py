@@ -301,12 +301,17 @@ for gt_filename in tqdm(os.listdir(GroundTruth_path)):
                         crop_img_gray = torch.mean(crop_img.float(), dim = 3, keepdim = True)
                         crop_img_gray = crop_img_gray.permute(0, 3, 1, 2)
                         crop_img_gray = crop_img_gray.to(device)
-                        logits = model(crop_img_gray)
-                        logits.shape  # torch.Size([1, 26, 95]), 94 characters + [EOS] symbol
+                        outputs = model(crop_img_gray)
+                        print('=======================outputs=======================\n')
+                        print(outputs)
+                        outputs.shape  # torch.Size([1, 26, 95]), 94 characters + [EOS] symbol
 
                         # Greedy decoding
-                        pred = logits.softmax(-1)
-                        label, confidence = model.tokenizer.decode(pred)
+                        pred = outputs.softmax(-1)
+                        print('=======================prediction=======================\n')
+                        print(pred)
+                        label, confidence = torch.max(outputs.data, 1)
+                        #label, confidence = model.tokenizer.decode(pred)
                         #print('Decoded label = {}'.format(label[0]))
                         
                         if len(label[0]) == 0 :
