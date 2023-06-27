@@ -21,6 +21,10 @@ LEARNING_RATE = 0.0001
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 IMAGE_SIZE = 64
+ITEM = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
+        ]
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -28,9 +32,7 @@ def iou(char_map , str_map, iou_num):
     total_char_size = char_map[char_map == 1].size
     in_str_char = char_map * str_map
     in_str_char_size = in_str_char[in_str_char == 1].size
-    
     cal_iou = in_str_char_size / total_char_size
-    
     if cal_iou >= iou_num : 
         return True
     else :
@@ -173,8 +175,6 @@ def return_candidate_char(str_list, gt_left, gt_right, pred_left, pred_right):
     
 
 # Load model and image transforms 辨識模型
-# model = torch.hub.load('baudm/parseq', 'parseq', pretrained = True).eval()
-# img_transform = SceneTextDataModule.get_transform(model.hparams.img_size)
 model = resnest50(num_classes = NUM_CLASS, final_drop = 0, dropblock_prob = 0, pretrained = True).to(device)
 model.load_state_dict(CHECKPOINT['model_state_dict'])
 optimizer = optim.SGD(model.parameters(), lr = LEARNING_RATE, momentum = MOMENTUM, weight_decay = WEIGHT_DECAY, nesterov = True)
@@ -280,7 +280,6 @@ for gt_filename in tqdm(os.listdir(GroundTruth_path)):
                 new_detect_list = []
                 for index_detect in detect_list[:]:
                     #print("===================",len(detect_list),"===================")
-
                     char_map = np.zeros(img.shape, dtype=np.uint8)
                     cv2.fillPoly(char_map,[index_detect],(1,1,1))
                     
@@ -302,26 +301,29 @@ for gt_filename in tqdm(os.listdir(GroundTruth_path)):
                         crop_img_gray = crop_img_gray.permute(0, 3, 1, 2)
                         crop_img_gray = crop_img_gray.to(device)
                         outputs = model(crop_img_gray)
-                        print('=======================outputs=======================\n')
-                        print(outputs)
                         outputs.shape  # torch.Size([1, 26, 95]), 94 characters + [EOS] symbol
 
                         # Greedy decoding
-                        pred = outputs.softmax(-1)
-                        print('=======================prediction=======================\n')
-                        print(pred)
-                        label, confidence = torch.max(outputs.data, 1)
+                        pred = outputs.softmax(-1)[0]
+                        #print('==========pred==========')
+                        #print(pred)
+                        #print('==========pred.shape==========')
+                        #print(pred.shape)
+                        #label, confidence = torch.max(pred.data, 1)
+                        print('==========torch.max(pred.data, 1)==========')
+                        print(torch.max(pred.data, 0)[1])
+                        label_index = torch.max(pred.data, 0)[1]
+                        label = ITEM[label_index.item()]
+                        print('label:', label)
                         #label, confidence = model.tokenizer.decode(pred)
-                        #print('Decoded label = {}'.format(label[0]))
-                        
+                        print('Decoded label = {}'.format(label[0]))
+
                         if len(label[0]) == 0 :
                             incorrect_info = incorrect_info + 1
                         else :
-                            
-
                             #橫向
                             if is_horizontal :
-                                candidate_list = return_candidate_char(gt_str,min(int(index_list[0]),int(index_list[6])),max(int(index_list[2]),int(index_list[4])),min(index_detect[:,0]),max(index_detect[:,0]))
+                                candidate_list = return_candidate_char(gt_str, min(int(index_list[0]), int(index_list[6])), max(int(index_list[2]),int(index_list[4])),min(index_detect[:,0]),max(index_detect[:,0]))
                             else :#直向
                                 candidate_list = return_candidate_char(gt_str,min(int(index_list[1]),int(index_list[3])),max(int(index_list[7]),int(index_list[5])),min(index_detect[:,1]),max(index_detect[:,1]))
                     
